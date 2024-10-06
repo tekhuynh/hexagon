@@ -1,38 +1,16 @@
-/**
- * Creates a 2D grid with the specified number of columns and rows.
- * 
- * @param {number} cols - The number of columns in the grid.
- * @param {number} rows - The number of rows in the grid.
- * @returns {Array<Array<number>>} A 2D array representing the grid.
- */
-function make_2d_grid(cols, rows) {}
 
-/**
- * p5.js setup function to initialize the canvas and grid.
- */
-function setup() {}
+function make_2d_grid(cols, rows) { }
 
-/**
- * Draws the grid of shapes on the canvas.
- * 
- * @param {Array<Array<number>>} grid - The 2D grid array representing the item states.
- * @param {number} height - The height of each between each row.
- * @param {boolean} parity - Enable parity value for the grid.
- * @param {number} offset - The horizontal offset for each alternate row.
- * 
- */
-function draw_grid(height, offset, grid) {}
+function setup() { }
 
-/**
- * p5.js draw function to render the grid on the canvas.
- */
-function draw() {}
-let grid
+function draw() { }
+
 const cols = 200;
 const rows = 100;
-const zoom = 10
-let offset
+const scale = 60;
+let offset;
 let height;
+let grid
 
 function make_2d_grid(cols, rows) {
     let grid = new Array(cols).fill(null).map(() => {
@@ -41,47 +19,54 @@ function make_2d_grid(cols, rows) {
     return grid;
 }
 function setup() {
-    
-    height = zoom * sqrt(3) / 2;
-    offset = zoom / 2;
+
+    height = sqrt(3) / 2;
+    offset = 1 / 2;
     grid = make_2d_grid(cols, rows)
     grid = grid.map((cols) => {
         return cols.map(() => {
             return floor(random(2));
         });
     });
-    createCanvas(offset * cols,rows * height);
+    createCanvas(scale*offset * cols, scale*rows * height);
     noLoop();
 }
 
 
-function draw_grid(grid, scale, height, width, draw_shape, v_offset = height, h_offset = width, parity = false) {
+function* calculate_offsets(rows, cols, scale, height, width, v_offset = height, h_offset = width, parity = false) {
     for (let j = 0; j < rows; j++) {
         for (let i = 0; i < cols; i++) {
 
             // parity is set to 0 if argument is not passed
-            let h_parity = (parity * i) % 2;
-            let v_parity = (parity * j) % 2;
-            
+            let h_parity = (parity * (i+1)) % 2;
+            let v_parity = (parity * (j+1)) % 2;
+
             // reverse the height for alternate shapes going rightwards
-            let current_height = (v_parity ? -1 : 1) * height;
-
-            // shift horizontal offset for alternate shapes going downwards
-            let current_offset = (h_parity ? -1 : 1) * h_offset;
-
-            // h_offset is spread and current_offset is for parity
-            let h_mid = i * h_offset + current_offset;
-
-            // these are relative to the center
-            let h_left = x - width / 2;
-            let h_right = x + width / 2;
+            let h_sign = (h_parity ? -1 : 1);
+            let v_bool = (v_parity ? 0 : 1);
 
             // start from mid height of the shape and then go up or down
-            let v_top = j * v_offset + height / 2 + current_height / 2;
-            let v_bot = y * v_offset + height / 2 - current_height / 2;
+            // the vertical offset is dependent on the horizontal parity
+            let v_top = j * v_offset - height / 2 + h_sign*height / 2;
+            let v_bot = j * v_offset - height / 2 - h_sign*height / 2;
 
-            // call the draw_shape function with the calculated values
-            draw_shape(grid[i][j], h_mid, h_left, h_right, v_top, v_bot);
+            // h_offset is spread and v_bool is for parity
+            // the horizontal offset is dependent on the vertical parity
+            let h_mid = i * h_offset + v_bool * width / 2;
+
+            // these are relative to the center
+            let h_left = h_mid - width / 2;
+            let h_right = h_mid + width / 2;
+
+            yield {
+                i: i,
+                j: j,
+                h_mid: scale * h_mid,
+                h_left: scale * h_left,
+                h_right: scale * h_right,
+                v_top: scale * v_top,
+                v_bot: scale * v_bot
+            };
         }
     }
 }
@@ -90,24 +75,20 @@ function draw_grid(grid, scale, height, width, draw_shape, v_offset = height, h_
 function draw() {
     background(0);
 
-        for (let j = 0; j < rows; j++) {  // Corrected to increment j
-            rowparity = (j % 2);
-            for (let i = 0; i < cols; i++) {  // Corrected to increment i
-                let colparity = (i % 2);
-                let currheight = height / 2 + colparity * -1 * height;
-                let curroffset = offset * rowparity;
-                let x = i * offset + curroffset;
-                let y = j * height + height / 2 + currheight;
-                let left = x - offset;
-                let right = x + offset;
-                let bot = y + - 2 * currheight;
-
-                if (grid[i][j] == 1) {
-                    fill(255);
-                    triangle(left, bot, right, bot, x, y);
-                }
-            }
+    calculate_offsets(rows, cols, scale, height, 1, height, offset, true).forEach(({
+        i,
+        j,
+        h_mid,
+        h_left,
+        h_right,
+        v_top,
+        v_bot
+    }) => {
+        if (grid[i][j] == 1) {
+            fill(100*(!(j%2))+100);
+            triangle(h_left, v_bot, h_right, v_bot, h_mid, v_top);
         }
-        update = false;
     }
+    )
+}
 
