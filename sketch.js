@@ -1,3 +1,11 @@
+
+const cols = 100;
+const rows = 50;
+const scale = 50;
+let grid;
+let offsets;
+let queue;
+
 class Node {
     constructor(value) {
         this.value = value;
@@ -68,12 +76,6 @@ class Queue {
     }
 }
 
-const cols = 10;
-const rows = 20;
-const scale = 50;
-let grid;
-let offsets;
-let queue;
 
 function make_2d_grid(cols, rows, fill = 0) {
     let grid = new Array(cols).fill(null).map(() => {
@@ -82,69 +84,6 @@ function make_2d_grid(cols, rows, fill = 0) {
     return grid;
 }
 
-function* calculate_offsets({ rows, cols, scale, height = 1, width = 1, v_offset = height, h_offset = width, v_shift = 0, h_shift = 0, parity = false, v_start = 0, h_start = 0 }) {
-
-    let minx = 1000
-    let maxy = -1000
-    let miny = 1000
-    let maxx = -1000
-
-    for (let j = 0; j < rows; j++) {
-        for (let i = 0; i < cols; i++) {
-
-            // parity is set to 0 if shift argument is not passed
-            let h_parity = parity ? i % 2 : 0;
-            let v_parity = parity ? j % 2 : 0;
-
-            // d_sign is for odd or even direction to set the orientation of the shapes
-            let h_sign = (h_parity ? -1 : 1);
-            let v_sign = (v_parity ? -1 : 1);
-            // d_bool is for odd or even parity to set the shift of the shapes
-            let h_bool = (h_parity ? 1 : 0);
-            let v_bool = (v_parity ? 1 : 0);
-
-
-            // offset is how spread out the shapes are
-            let h_mid = width / 2 + i * h_offset
-            //h_mid += v_bool * h_shift * width;
-            let v_mid = height / 2 + j * v_offset
-            //v_mid += h_bool * v_shift * height;
-
-            // the vertical shift is dependent on the horizontal parity
-
-            // the horizontal shift is dependent on the vertical parity
-
-            let h_left = h_mid - h_sign * width / 2;
-            let h_right = h_mid + h_sign * width / 2;
-
-            // start from mid height of the shape and then go up or down, left or right
-            // these are relative to the center
-            let v_top = v_mid - v_sign * height / 2;
-            let v_bot = v_mid + v_sign * height / 2;
-
-            minx = Math.min(minx, h_left)
-            maxx = Math.max(maxx, h_right)
-            miny = Math.min(miny, v_top)
-            maxy = Math.max(maxy, v_bot)
-
-            yield {
-                i: i,
-                j: j,
-                index: i + j * cols,
-                h_mid: h_start + scale * h_mid,
-                h_left: h_start + scale * h_left,
-                h_right: h_start + scale * h_right,
-                v_top: v_start + scale * v_top,
-                v_bot: v_start + scale * v_bot,
-                v_mid: v_start + scale * v_mid,
-                minx: h_start + scale * minx,
-                maxx: h_start + scale * maxx,
-                miny: v_start + scale * miny,
-                maxy: v_start + scale * maxy
-            };
-        }
-    }
-}
 
 class Parity {
     constructor({h_flip = false, v_flip = false, h_shift = 0, v_shift = 0}) {
@@ -155,7 +94,7 @@ class Parity {
     }
 }
 
-function* calculate_offsets2({ rows, cols, scale = 10, height = 1, width = 1, rise = 0, run = 0, v_offset = height, h_offset = width, v_start = 0, h_start = 0, parity = null }) {
+function* calculate_offsets({ rows, cols, scale = 10, height = 1, width = 1, rise = 0, run = 0, v_offset = height, h_offset = width, v_start = 0, h_start = 0, parity = null }) {
 
     let minx = 1000
     let maxy = -1000
@@ -225,10 +164,10 @@ function* calculate_offsets2({ rows, cols, scale = 10, height = 1, width = 1, ri
                 i: i,
                 j: j,
                 index: i + j * cols,
-                minx: h_start + scale * minx,
-                maxx: h_start + scale * maxx,
-                miny: v_start + scale * miny,
-                maxy: v_start + scale * maxy
+                minx: minx,
+                maxx: maxx,
+                miny: miny,
+                maxy: maxy
             };
 
             yield pair
@@ -242,14 +181,17 @@ function setup() {
 
     let three = Math.sqrt(3) / 2;
     offsets = make_2d_grid(cols, rows, null)
-    let calculations = calculate_offsets2({
+    let calculations = calculate_offsets({
         rows: rows,
         cols: cols,
         scale: scale,
         run: 1/2,
-        height: three,
+        rise: 0,
+        height:three,
         width: 1,
         h_offset: 1/2,
+        h_start: 0,
+        v_start: 0,
         parity: new Parity({
             v_flip: true,
             h_shift: 1/2
@@ -268,7 +210,7 @@ function setup() {
     queue.enqueue(offsets[midx][midy]);
     set_grid_random();
     let last = offsets[cols - 1][rows - 1]
-    createCanvas(min(1000, last.maxx - last.minx), min(1000, last.maxy - last.miny));
+    createCanvas(min(10000,  last.maxx - last.minx), min(10000, last.maxy - last.miny));
     noLoop();
 }
 
@@ -307,7 +249,7 @@ function draw() {
                 fill(255)
                 textSize(7);
                 textAlign(CENTER, CENTER);
-                text(o.index + ":" + i + "," + j, o.h_mid, o.v_mid);
+                text( i + "," + j, o.h_mid, o.v_mid);
             }
         }
     }
