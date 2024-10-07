@@ -1,7 +1,10 @@
-
-const cols = 500;
-const rows = 250;
-const scale = 7;
+// The algorithm below is an implementation of Dijkstra's algorithm on a triangle grid.
+const canvasscale = 3;
+const cols = 79 * canvasscale;
+const rows = 27 * canvasscale;
+const scale = 6;
+const midx = Math.floor(cols / 2);
+const midy = Math.floor(rows / 2);
 let grid;
 let offsets;
 let queue;
@@ -86,7 +89,7 @@ function make_2d_grid(cols, rows, fill = 0) {
 
 
 class Parity {
-    constructor({h_flip = false, v_flip = false, h_shift = 0, v_shift = 0}) {
+    constructor({ h_flip = false, v_flip = false, h_shift = 0, v_shift = 0 }) {
         this.h_flip = h_flip;
         this.v_flip = v_flip;
         this.h_shift = h_shift;
@@ -122,12 +125,12 @@ function* calculate_offsets({ rows, cols, scale = 10, height = 1, width = 1, ris
                 if (parity.h_shift) {
                     pair.h_left += parity.h_shift * scale
                     pair.h_right += parity.h_shift * scale
-                    pair.h_mid += parity.h_shift* scale
+                    pair.h_mid += parity.h_shift * scale
                 }
                 if (parity.v_shift) {
-                    pair.v_top += parity.v_shift* scale
-                    pair.v_bot += parity.v_shift* scale
-                    pair.v_mid += parity.v_shift* scale
+                    pair.v_top += parity.v_shift * scale
+                    pair.v_bot += parity.v_shift * scale
+                    pair.v_mid += parity.v_shift * scale
                 }
             } else {
 
@@ -149,7 +152,7 @@ function* calculate_offsets({ rows, cols, scale = 10, height = 1, width = 1, ris
                     h_right: scale * h_right,
                     v_top: scale * v_top,
                     v_bot: scale * v_bot,
-                    v_mid:scale *  v_mid,
+                    v_mid: scale * v_mid,
                 }
                 prev = pair
             }
@@ -176,44 +179,6 @@ function* calculate_offsets({ rows, cols, scale = 10, height = 1, width = 1, ris
     }
 }
 
-
-function setup() {
-
-    let three = Math.sqrt(3) / 2;
-    offsets = make_2d_grid(cols, rows, null)
-    let calculations = calculate_offsets({
-        rows: rows,
-        cols: cols,
-        scale: scale,
-        run: 1/2,
-        rise: 0,
-        height:three,
-        width: 1,
-        h_offset: 1/2,
-        h_start: 0,
-        v_start: 0,
-        parity: new Parity({
-            v_flip: true,
-            h_shift: 1/2
-        }),
-    });
-
-    for (let o of calculations) {
-        offsets[o.i][o.j] = o;
-    }
-
-    grid = make_2d_grid(cols, rows)
-    midx = Math.floor(cols / 2);
-    midy = Math.floor(rows / 2);
-    grid[midx][midy] = 1;
-    queue = new Queue();
-    queue.enqueue(offsets[midx][midy]);
-    let last = offsets[cols - 1][rows - 1]
-    createCanvas(min(10000,  last.maxx - last.minx), min(10000, last.maxy - last.miny));
-    noLoop();
-    while(step()) {}
-}
-
 function set_grid_random() {
     for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
@@ -222,7 +187,6 @@ function set_grid_random() {
     }
 }
 
-let iter = 10;
 function step() {
 
     if (queue.isEmpty()) {
@@ -233,9 +197,8 @@ function step() {
     let neighbors = [];
 
     while (!current_queue.isEmpty()) {
-        let current = current_queue.dequeue();
-        let i = current.i;
-        let j = current.j;
+        let [i, j] = current_queue.dequeue();
+        triangles.push([i, j]);
 
         grid[i][j] = iter;
 
@@ -244,9 +207,9 @@ function step() {
         // even goes up, odd goes down
         let parity = i & 1 ? 1 : -1;
         let check = [
-            [i-1, j],
-            [i+1, j],
-            [i-parity, j+parity],
+            [i - 1, j],
+            [i + 1, j],
+            [i - parity, j + parity],
         ];
         for (let [i, j] of check) {
             if (i >= 0 && i < cols && j >= 0 && j < rows && grid[i][j] == 0) {
@@ -268,7 +231,7 @@ function step() {
             continue;
         }
         if (grid[i][j] == 1) {
-            queue.enqueue(offsets[i][j]);
+            queue.enqueue([i,j]);
             continue;
         }
         console.log("error");
@@ -277,21 +240,94 @@ function step() {
     return true;
 }
 
-function draw() {
-    background(0);
 
-    for (let i = 0; i < cols; i++) {
-        for (let j = 0; j < rows; j++) {
-            let o = offsets[i][j];
-            if (grid[i][j] != 0) {
-                fill((grid[i][j] *30)%255);
-                triangle(o.h_left, o.v_bot, o.h_right, o.v_bot, o.h_mid, o.v_top);
-                // fill(255)
-                // textSize(7);
-                // textAlign(CENTER, CENTER);
-                // text(grid[i][j]+","+i + "," + j, o.h_mid, o.v_mid);
-            }
-        }
+let iter = 10;
+let buffer;
+let triangles = [];
+
+function setup() {
+
+    let three = Math.sqrt(3) / 2;
+    offsets = make_2d_grid(cols, rows, null)
+    let calculations = calculate_offsets({
+        rows: rows,
+        cols: cols,
+        scale: scale,
+        run: 1 / 2,
+        rise: 0,
+        height: three,
+        width: 1,
+        h_offset: 1 / 2,
+        h_start: 0,
+        v_start: 0,
+        parity: new Parity({
+            v_flip: true,
+            h_shift: 1 / 2
+        }),
+    });
+
+    for (let o of calculations) {
+        offsets[o.i][o.j] = o;
     }
+
+    grid = make_2d_grid(cols, rows)
+    grid[midx][midy] = 1;
+    queue = new Queue();
+    queue.enqueue([midx,midy]);
+    let last = offsets[cols - 1][rows - 1]
+    createCanvas(min(10000, last.maxx - last.minx), min(10000, last.maxy - last.miny));
+    buffer = createGraphics(min(10000, last.maxx - last.minx), min(10000, last.maxy - last.miny));
+    //noLoop();
+    //while(step()) {}
+    buffer.background(0);
+    buffer.stroke(0, 0, 0, 0);
+    drawTrianglesToBuffer();
 }
+
+
+
+let multiplier = 15
+function drawTrianglesToBuffer() {
+    buffer.fill(0, 0, 0, 10);
+    buffer.rect(0, 0, buffer.width, buffer.height);
+
+    if (step()== false){
+        grid = make_2d_grid(cols, rows)
+        grid[midx][midy] = 1;
+        queue.enqueue([midx,midy]);
+        multiplier=(multiplier + 100) % 1024;
+        iter = 10;
+        step();
+    }
+    for ([i, j] of triangles) {
+
+        let o = offsets[i][j];
+        buffer.fill((grid[i][j] * multiplier) % 255, floor(( 1 - grid[i][j] / 266) * 255));
+        buffer.triangle(o.h_left, o.v_bot, o.h_right, o.v_bot, o.h_mid, o.v_top);
+    }
+    triangles = [];
+}
+function draw() {
+    image(buffer, 0, 0);
+    drawTrianglesToBuffer();
+}
+// function draw() {
+//     background(0);
+//     stroke(0,0,0,0);
+//     for (let i = 0; i < cols; i++) {
+//         for (let j = 0; j < rows; j++) {
+//             let o = offsets[i][j];
+//             if (grid[i][j] != 0) {
+//                 fill((grid[i][j] *15)%255,floor((iter-grid[i][j])/266*255));
+//                 triangle(o.h_left, o.v_bot, o.h_right, o.v_bot, o.h_mid, o.v_top);
+//                 // fill(255)
+//                 // textSize(7);
+//                 // textAlign(CENTER, CENTER);
+//                 // text(grid[i][j]+","+i + "," + j, o.h_mid, o.v_mid);
+//             }
+//         }
+//     }
+//     step();
+//     //console.log(iter);
+// }
 
