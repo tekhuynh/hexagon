@@ -1,7 +1,7 @@
 
-const cols = 100;
-const rows = 50;
-const scale = 50;
+const cols = 500;
+const rows = 250;
+const scale = 7;
 let grid;
 let offsets;
 let queue;
@@ -140,8 +140,8 @@ function* calculate_offsets({ rows, cols, scale = 10, height = 1, width = 1, ris
                 let h_right = h_mid + width / 2;
 
                 let v_mid = v_start + height / 2 + j * v_offset + rise * i
-                let v_top = v_mid - height / 2;
-                let v_bot = v_mid + height / 2;
+                let v_top = v_mid + height / 2;
+                let v_bot = v_mid - height / 2;
 
                 pair = {
                     h_mid: scale * h_mid,
@@ -208,10 +208,10 @@ function setup() {
     grid[midx][midy] = 1;
     queue = new Queue();
     queue.enqueue(offsets[midx][midy]);
-    set_grid_random();
     let last = offsets[cols - 1][rows - 1]
     createCanvas(min(10000,  last.maxx - last.minx), min(10000, last.maxy - last.miny));
     noLoop();
+    while(step()) {}
 }
 
 function set_grid_random() {
@@ -222,18 +222,59 @@ function set_grid_random() {
     }
 }
 
-
+let iter = 10;
 function step() {
 
     if (queue.isEmpty()) {
         return false;
     }
 
-    let current = queue.dequeue();
+    current_queue = queue
+    let neighbors = [];
 
-    console.log(queue.dequeue()); // Output: 1
-    queue.printQueue(); // Output: 2 3
+    while (!current_queue.isEmpty()) {
+        let current = current_queue.dequeue();
+        let i = current.i;
+        let j = current.j;
 
+        grid[i][j] = iter;
+
+        // think of a square grid, and then the neighbors are the 4 sides
+        // but in a triangle grid, the neighbors are the 3 sides
+        // even goes up, odd goes down
+        let parity = i & 1 ? 1 : -1;
+        let check = [
+            [i-1, j],
+            [i+1, j],
+            [i-parity, j+parity],
+        ];
+        for (let [i, j] of check) {
+            if (i >= 0 && i < cols && j >= 0 && j < rows && grid[i][j] == 0) {
+                neighbors.push([i, j]);
+            }
+        }
+
+    }
+
+    iter++;
+
+    for (let [i, j] of neighbors) {
+        grid[i][j] += 1;
+    }
+
+    for (let [i, j] of neighbors) {
+        if (grid[i][j] != 1) {
+            grid[i][j] = iter;
+            continue;
+        }
+        if (grid[i][j] == 1) {
+            queue.enqueue(offsets[i][j]);
+            continue;
+        }
+        console.log("error");
+    }
+
+    return true;
 }
 
 function draw() {
@@ -242,14 +283,13 @@ function draw() {
     for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
             let o = offsets[i][j];
-            if (grid[i][j] == 1) {
-                fill(100 * ((i % 2)) + 100);
+            if (grid[i][j] != 0) {
+                fill((grid[i][j] *30)%255);
                 triangle(o.h_left, o.v_bot, o.h_right, o.v_bot, o.h_mid, o.v_top);
-                //triangle(o.h_left, o.v_bot, o.h_left, o.v_top, o.h_right, o.v_mid);
-                fill(255)
-                textSize(7);
-                textAlign(CENTER, CENTER);
-                text( i + "," + j, o.h_mid, o.v_mid);
+                // fill(255)
+                // textSize(7);
+                // textAlign(CENTER, CENTER);
+                // text(grid[i][j]+","+i + "," + j, o.h_mid, o.v_mid);
             }
         }
     }
