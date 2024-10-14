@@ -1,10 +1,15 @@
 // The algorithm below is an implementation of Dijkstra's algorithm on a triangle grid.
-const canvasscale = 3;
-const cols = 79 * canvasscale;
-const rows = 27 * canvasscale;
-const scale = 6;
-const midx = Math.floor(cols / 2);
-const midy = Math.floor(rows / 2);
+const grid_multiply = 2;
+const cols = 79*2   *grid_multiply;
+const rows = 79  *grid_multiply;
+// const cols = 79   *grid_multiply;
+// const rows = 26  *grid_multiply;
+const scale = 7;
+const iterstart = 2;
+const midx = 1;
+const midy = 0;
+// const midx = Math.floor(cols / 2);
+// const midy = Math.floor(rows / 2);
 let grid;
 let offsets;
 let queue;
@@ -187,9 +192,12 @@ function set_grid_random() {
     }
 }
 
-function step() {
+function step(push = true) {
 
     if (queue.isEmpty()) {
+        return false;
+    }
+    if (iter == 257) {
         return false;
     }
 
@@ -198,7 +206,7 @@ function step() {
 
     while (!current_queue.isEmpty()) {
         let [i, j] = current_queue.dequeue();
-        triangles.push([i, j]);
+        if (push) triangles.push([i, j]);
 
         grid[i][j] = iter;
 
@@ -226,12 +234,13 @@ function step() {
     }
 
     for (let [i, j] of neighbors) {
-        if (grid[i][j] != 1) {
+        if (grid[i][j] > 1) {
             grid[i][j] = iter;
+            if (push) gaps.push([i, j]);
             continue;
         }
         if (grid[i][j] == 1) {
-            queue.enqueue([i,j]);
+            if (push) queue.enqueue([i,j]);
             continue;
         }
         console.log("error");
@@ -241,9 +250,10 @@ function step() {
 }
 
 
-let iter = 10;
+let iter = iterstart;
 let buffer;
 let triangles = [];
+let gaps = [];
 
 function setup() {
 
@@ -275,41 +285,91 @@ function setup() {
     queue = new Queue();
     queue.enqueue([midx,midy]);
     let last = offsets[cols - 1][rows - 1]
-    createCanvas(min(10000, last.maxx - last.minx), min(10000, last.maxy - last.miny));
+    canvas = createCanvas(min(10000, last.maxx - last.minx), min(10000, last.maxy - last.miny));
     buffer = createGraphics(min(10000, last.maxx - last.minx), min(10000, last.maxy - last.miny));
-    //noLoop();
-    //while(step()) {}
+    noLoop();
+    while(step()) {}
+    maxiter = iter;
+    opacities = Array.from({ length: maxiter }, (_, i) =>  floor((1- (i+1) / (maxiter)) * 16)*16+16);
+    let sigmoid = (x) => 1/(1+Math.exp(-(x)))
+    // opacities = Array.from({ length: maxiter }, (_, i) =>  floor(sigmoid(3*(1-(i)/(maxiter)))*256));
     buffer.background(0);
-    buffer.stroke(0, 0, 0, 0);
+    buffer.noStroke();
+    buffer.textSize(6);
+    buffer.textAlign(CENTER, CENTER);
+    noStroke();
+    textSize(32);
+    textAlign(CENTER, CENTER);
+    maxiter = maxiter;
     drawTrianglesToBuffer();
+    buffer.fill(255)
+    // for (let i = 0; i < cols; i++){
+    //     for (let j = 0; j < rows; j++){
+    //         if (grid[i][j] == 0) {
+    //             let o = offsets[i][j];
+    //             buffer.text(grid[i][j], o.h_mid, o.v_mid);
+    //         }
+    //     }
+    // } 
 }
+let canvas
+let maxiter
+let opacities
+let coefficients
+function polynomial(x, coefficients) {
+    return coefficients.reduce((acc, c) => (x*acc + c) %256, 0);
+}
+let mult = 3
+let mult_increment = 1000;
+let evals;
+async function drawTrianglesToBuffer() {
 
-
-
-let multiplier = 15
-function drawTrianglesToBuffer() {
-    buffer.fill(0, 0, 0, 10);
+//    buffer.fill(0, 0, 0, 255);
+    buffer.fill(0) 
     buffer.rect(0, 0, buffer.width, buffer.height);
-
-    if (step()== false){
-        grid = make_2d_grid(cols, rows)
-        grid[midx][midy] = 1;
-        queue.enqueue([midx,midy]);
-        multiplier=(multiplier + 100) % 1024;
-        iter = 10;
-        step();
-    }
+//    if (step()== false){
+        //grid = make_2d_grid(cols, rows)
+        //grid[midx][midy] = 1;
+        //queue.enqueue([midx,midy]);
+        mult=(mult + mult_increment) % Number.MAX_SAFE_INTEGER;
+        //iter = 10;
+        coefficients = `${mult}`.split('').map(c => parseInt(c));
+        // evals = Array.from({ length: maxiter }, (_, i) =>  floor(polynomial(i+1, coefficients)*7/8+64));
+        evals = Array.from({ length: maxiter }, (_, i) =>  floor(polynomial(i, [16,0])));
+        //while(step());
+//    }
     for ([i, j] of triangles) {
 
         let o = offsets[i][j];
-        buffer.fill((grid[i][j] * multiplier) % 255, floor(( 1 - grid[i][j] / 266) * 255));
+        //buffer.fill(polynomial(grid[i][j], coefficients))//, floor((1- ( 10 - grid[i][j]) / maxiter) * 255));
+        buffer.fill(floor(evals[grid[i][j]-iterstart- (i % 2 == 1 ? 1 : 0)]* opacities[grid[i][j]-iterstart]/(255-55)));
         buffer.triangle(o.h_left, o.v_bot, o.h_right, o.v_bot, o.h_mid, o.v_top);
     }
-    triangles = [];
+    for ([i, j] of gaps) {
+
+        let o = offsets[i][j];
+        //buffer.fill(polynomial(grid[i][j], coefficients))//, floor((1- ( 10 - grid[i][j]) / maxiter) * 255));
+        buffer.fill(floor(evals[grid[i][j]-iterstart- (i % 2 == 1 ? 0 : 0)]*(opacities[grid[i][j]-iterstart]/(255-255/9))));
+        buffer.triangle(o.h_left, o.v_bot, o.h_right, o.v_bot, o.h_mid, o.v_top);
+        // buffer.fill(0)
+        // buffer.text(grid[i][j] - iterstart, o.h_mid, o.v_mid);
+    }
+    //triangles = [];
+    //await sleep(500);
 }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+buffer_offset = 0
 function draw() {
-    image(buffer, 0, 0);
+    image(buffer, -buffer_offset, 0);
+
     drawTrianglesToBuffer();
+
+    // fill(255)
+    // let o = offsets[midx][midy];
+    // text(mult, -buffer_offset+o.h_mid, o.v_mid);
+    //saveCanvas(canvas, `${mult}`, 'png');
 }
 // function draw() {
 //     background(0);
